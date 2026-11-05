@@ -37,7 +37,8 @@ jest.mock('@/core/stores', () => ({
 }));
 
 jest.mock('next-intl', () => ({
-	useTranslations: () => (key: string) => key
+	useTranslations: () => (key: string) => key,
+	useLocale: () => 'en'
 }));
 
 jest.mock('@/core/hooks', () => ({
@@ -89,13 +90,6 @@ jest.mock('@/core/components/teams/manage-member-component', () => ({
 	}
 }));
 
-jest.mock('@/core/components/common/accordion', () => ({
-	Accordion: ({ children }: MockChildrenProps) => <div>{children}</div>,
-	AccordionContent: ({ children }: MockChildrenProps) => <div>{children}</div>,
-	AccordionItem: ({ children }: MockChildrenProps) => <div>{children}</div>,
-	AccordionTrigger: ({ children }: MockChildrenProps) => <div>{children}</div>
-}));
-
 // The shift times use the Radix select: a native one stands in, its items become options
 jest.mock('@/core/components/common/select', () => ({
 	Select: ({
@@ -135,7 +129,6 @@ jest.mock('../../common/multiple-select', () => ({
 
 jest.mock('@radix-ui/react-icons', () => ({ PlusIcon: () => null, ReloadIcon: () => null }));
 jest.mock('../../tasks/task-displays', () => ({ TaskNameInfoDisplay: () => null }));
-jest.mock('../tasks/edit-task-modal', () => ({ ToggleButton: () => null }));
 jest.mock('../../pages/timesheet/timesheet-filter-date', () => ({ DatePickerFilter: () => null }));
 
 function teamWithMember(teamId: string, employeeId: string) {

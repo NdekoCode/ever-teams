@@ -1,10 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
-import { TranslationHooks, useTranslations } from 'next-intl';
+import { TranslationHooks, useLocale, useTranslations } from 'next-intl';
 import { Item, ManageOrMemberComponent, getNestedValue } from '@/core/components/teams/manage-member-component';
 import { useTimelogFilterOptions } from '@/core/hooks';
 import { clsxm } from '@/core/lib/utils';
-import { Modal } from '@/core/components';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/core/components/common/accordion';
+import { Modal, modalPrimaryActionClass, modalSecondaryActionClass } from '@/core/components';
+import { DialogFieldLabel } from '@/core/components/common/dialog-field-label';
+import { BillableSwitch } from '@/core/components/common/billable-switch';
+import { ADD_ROW_RECIPE } from '@/core/components/common/surface-recipes';
 import {
 	Select,
 	SelectContent,
@@ -15,18 +17,25 @@ import {
 } from '@/core/components/common/select';
 import { useCreateTimesheet } from '@/core/hooks/timesheet/use-create-timesheet';
 import { toUTC } from '@/core/lib/helpers/index';
-import { Plus, Spinner } from '@/core/components/icons';
+import { Clock, Plus, Spinner, Trash } from '@/core/components/icons';
 import { Button } from '@/core/components/duplicated-components/_button';
 import { controlGroupRecipe, controlRecipe } from '@/core/components/common/input';
 import { CustomSelect } from '../../common/multiple-select';
 import { TaskNameInfoDisplay } from '../../tasks/task-displays';
-import { ToggleButton } from '../tasks/edit-task-modal';
 import { DatePickerFilter } from '../../pages/timesheet/timesheet-filter-date';
 import { ETimeLogType, ETimeLogSource } from '@/core/types/generics/enums/timer';
 import { useAtomValue } from 'jotai';
 import { activeTeamState, tasksByTeamState } from '@/core/stores';
 import { useOrganizationProjectsQuery } from '@/core/hooks/organizations/projects/use-organization-projects-query';
 import type { TOrganizationProject } from '@/core/types/schemas/organization/organization-project.schema';
+
+const PICKER_LABEL_CLASS_NAME = 'mb-1.5 text-xs font-medium leading-none text-muted-foreground';
+
+const NOTES_FIELD_CLASS_NAME = 'field-sizing-content max-h-[6lh] min-h-20 w-full resize-none p-3';
+
+const NOTES_MAX_LENGTH = 120;
+
+const EMPTY_SHIFT_TOTAL = '00:00h';
 
 export interface IAddTaskModalProps {
 	isOpen: boolean;
@@ -94,6 +103,15 @@ const clearSkippedTimes = (shift: Shift, day: Date) => {
 	if (clearStart || clearEnd) shift.totalHours = '00:00h';
 };
 
+function shiftDateLabelOf(dateFrom: Date | string, locale: string, placeholder: string): string {
+	if (!dateFrom) {
+		return placeholder;
+	}
+	const day = new Date(dateFrom);
+	const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' });
+	return formatter.format(day);
+}
+
 function findProject(projectId: string | null | undefined, projects: TOrganizationProject[]) {
 	if (!projectId) {
 		return undefined;
@@ -136,6 +154,7 @@ export function AddTaskModal({ closeModal, isOpen }: IAddTaskModalProps) {
 
 	const timeOptions = generateTimeOptions(5);
 	const t = useTranslations();
+	const notesId = React.useId();
 
 	const [formState, setFormState] = React.useState({
 		notes: '',
@@ -143,7 +162,7 @@ export function AddTaskModal({ closeModal, isOpen }: IAddTaskModalProps) {
 		taskId: '',
 		employeeId: '',
 		projectId: '',
-		shifts: [{ startTime: '', endTime: '', totalHours: '00:00h', dateFrom: new Date() }] as Shift[]
+		shifts: [{ startTime: '', endTime: '', totalHours: EMPTY_SHIFT_TOTAL, dateFrom: new Date() }] as Shift[]
 	});
 
 	// The task and the employee come from the active team's lists: when that team changes under the open form
@@ -300,17 +319,14 @@ export function AddTaskModal({ closeModal, isOpen }: IAddTaskModalProps) {
 		<Modal
 			isOpen={isOpen}
 			closeModal={closeModal}
-			title={`+ ${t('common.ADD_TIME_ENTRY')}`}
+			title={t('common.ADD_TIME_ENTRY')}
+			breadcrumb={activeTeam?.name}
 			showCloseIcon
-			className="w-full md:w-40 md:min-w-[32rem] justify-start h-[auto]"
-			titleClass="flex justify-start w-full"
+			className="w-full max-w-xl"
 		>
-			<div className="flex flex-col w-full gap-4 justify-start md:w-40 md:min-w-[30rem]">
-				<div className=" w-full mr-[4%]">
-					<label className="block mb-1.5 text-sm font-medium leading-none text-foreground">
-						{t('sidebar.TASKS')}
-						<span className="ml-1 text-destructive-ink">*</span>
-					</label>
+			<div className="flex w-full flex-col gap-4 text-sm">
+				<div className="flex flex-col">
+					<DialogFieldLabel isRequired>{t('manualTime.TASK')}</DialogFieldLabel>
 					<CustomSelect
 						value={formState.taskId}
 						onChange={pickTask}
@@ -332,11 +348,21 @@ export function AddTaskModal({ closeModal, isOpen }: IAddTaskModalProps) {
 						)}
 					/>
 				</div>
-				<div className="block">
-					<label className="block mb-1.5 text-sm font-medium leading-none text-foreground">
-						{t('manualTime.EMPLOYEE')}
-						<span className="ml-1 text-destructive-ink">*</span>:
-					</label>
+				<ManageOrMemberComponent
+					className="flex flex-col"
+					fieldClassName="mb-0"
+					labelClassName={PICKER_LABEL_CLASS_NAME}
+					classNameTitle="text-xs"
+					fields={fields}
+					itemsLists={projectItemsLists}
+					selectedValues={selectedValues}
+					onSelectedValuesChange={handleSelectedValuesChange}
+					handleChange={handleChange}
+					itemToString={itemToString}
+					itemToValue={itemToValue}
+				/>
+				<div className="flex flex-col">
+					<DialogFieldLabel isRequired>{t('manualTime.EMPLOYEE')}</DialogFieldLabel>
 					<CustomSelect
 						valueKey="employeeId"
 						value={formState.employeeId}
@@ -359,114 +385,83 @@ export function AddTaskModal({ closeModal, isOpen }: IAddTaskModalProps) {
 						)}
 					/>
 				</div>
-				<div>
-					<OptimizedAccordion
+				<div className="flex flex-col">
+					<DialogFieldLabel isRequired>{t('common.DATE_AND_TIME')}</DialogFieldLabel>
+					<ShiftList
 						setShifts={(e) => updateFormState('shifts', e)}
 						shifts={formState.shifts}
 						t={t}
 						timeOptions={timeOptions}
 					/>
 				</div>
-
-				<div className="flex flex-col w-full">
-					<ManageOrMemberComponent
-						classNameTitle="text-sm font-medium text-foreground mr-12 capitalize"
-						fields={fields}
-						itemsLists={projectItemsLists}
-						selectedValues={selectedValues}
-						onSelectedValuesChange={handleSelectedValuesChange}
-						handleChange={handleChange}
-						itemToString={itemToString}
-						itemToValue={itemToValue}
-					/>
-				</div>
-				<div className="flex flex-col items-start w-full">
-					<label className="mb-1.5 text-sm font-medium text-foreground mr-12 capitalize">
-						{t('pages.timesheet.BILLABLE.BILLABLE').toLowerCase()}
-					</label>
-					<div className="flex gap-3 items-start">
-						<ToggleButton
-							isActive={isBillable}
-							onClick={() => updateFormState('billableChoice', true)}
-							label={t('pages.timesheet.BILLABLE.YES')}
-						/>
-						<ToggleButton
-							isActive={!isBillable}
-							onClick={() => updateFormState('billableChoice', false)}
-							label={t('pages.timesheet.BILLABLE.NO')}
-						/>
-					</div>
-				</div>
-
-				<div className="flex flex-col w-full">
-					<span className="mb-1.5 text-sm font-medium text-foreground">{t('common.NOTES')}</span>
+				<div className="flex flex-col">
+					<DialogFieldLabel htmlFor={notesId} isRequired>
+						{t('common.NOTES')}
+					</DialogFieldLabel>
 					<textarea
+						id={notesId}
 						value={formState.notes}
 						onChange={(e) => updateFormState('notes', e.target.value)}
-						placeholder="Insert notes here..."
-						className={clsxm(
-							controlRecipe,
-							'h-36 w-full grow resize-none p-3',
-							formState.notes.trim().length === 0 && 'border-destructive ring-destructive/20'
-						)}
-						maxLength={120}
+						placeholder={t('modals.manualTime.descriptionPlaceholder')}
+						className={clsxm(controlRecipe, NOTES_FIELD_CLASS_NAME)}
+						maxLength={NOTES_MAX_LENGTH}
 						minLength={0}
-						aria-label="Insert notes here"
 						required
 					/>
-					<div className="mt-1 text-xs tabular-nums text-muted-foreground text-right">
-						{formState.notes.length}/{120}
+					<div className="mt-1 text-right text-xs tabular-nums text-muted-foreground">
+						{formState.notes.length}/{NOTES_MAX_LENGTH}
 					</div>
 				</div>
-				<div className="flex gap-x-2 justify-end items-center w-full">
-					<Button variant="outline" size="lg" type="button" onClick={closeModal}>
-						{t('common.CANCEL')}
-					</Button>
-					<Button
-						size="lg"
-						disabled={isSaveDisabled}
-						onClick={() => handleAddTimesheet(formState as any)}
-						type="submit"
-					>
-						{loadingCreateTimesheet && <Spinner className="animate-spin" />}
-						{t('common.SAVE')}
-					</Button>
+				<div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+					<BillableSwitch
+						isBillable={isBillable}
+						onChange={(checked) => updateFormState('billableChoice', checked)}
+						label={t('dashboard.timesheets.BILLABLE')}
+					/>
+					<div className="ml-auto flex items-center gap-2">
+						<Button
+							variant="ghost"
+							size="default"
+							type="button"
+							onClick={closeModal}
+							className={modalSecondaryActionClass}
+						>
+							{t('common.CANCEL')}
+						</Button>
+						<Button
+							size="default"
+							disabled={isSaveDisabled}
+							onClick={() => handleAddTimesheet(formState as any)}
+							type="submit"
+							className={modalPrimaryActionClass}
+						>
+							{loadingCreateTimesheet && <Spinner className="animate-spin" />}
+							{t('common.SAVE')}
+						</Button>
+					</div>
 				</div>
 			</div>
 		</Modal>
 	);
 }
+
 interface ShiftTimingSelectProps {
 	label: string;
 	timeOptions: string[];
-	placeholder: string;
-	className?: string;
 	value?: string;
 	onChange?: (value: string) => void;
 	isTimeDisabled?: (time: string) => boolean;
 }
 
-const ShiftTimingSelect = ({
-	label,
-	timeOptions,
-	placeholder,
-	className,
-	onChange,
-	value,
-	isTimeDisabled
-}: ShiftTimingSelectProps) => (
-	<div className={clsxm(controlGroupRecipe, 'h-9 overflow-hidden')}>
-		<button
-			className={clsxm(
-				'flex h-full shrink-0 items-center hairline-r border-border px-2.5 text-xs font-medium text-muted-foreground focus:outline-none',
-				className
-			)}
-		>
-			{label}
-		</button>
+const ShiftTimingSelect = ({ label, timeOptions, onChange, value, isTimeDisabled }: ShiftTimingSelectProps) => (
+	<div className={clsxm(controlGroupRecipe, 'h-9 min-w-0 overflow-hidden pl-2.5')}>
+		<Clock className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
 		<Select onValueChange={onChange} value={value}>
-			<SelectTrigger className="h-full w-full rounded-none border-transparent bg-transparent text-ellipsis tabular-nums shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent">
-				<SelectValue placeholder={placeholder} />
+			<SelectTrigger
+				aria-label={label}
+				className="h-full w-full rounded-none border-transparent bg-transparent pl-2 text-ellipsis tabular-nums shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
+			>
+				<SelectValue placeholder={label} />
 			</SelectTrigger>
 			<SelectContent className="z-[1001] max-h-60 overflow-y-auto">
 				<SelectGroup>
@@ -486,7 +481,7 @@ const ShiftTimingSelect = ({
 	</div>
 );
 
-const OptimizedAccordion = ({
+const ShiftList = ({
 	setShifts,
 	shifts,
 	timeOptions,
@@ -508,7 +503,7 @@ const OptimizedAccordion = ({
 	}, []);
 
 	const handleAddShift = () => {
-		setShifts([...shifts, { startTime: '', endTime: '', totalHours: '00:00:00 h', dateFrom: new Date() }]);
+		setShifts([...shifts, { startTime: '', endTime: '', totalHours: EMPTY_SHIFT_TOTAL, dateFrom: new Date() }]);
 	};
 
 	const handleRemoveShift = (index: number) => {
@@ -554,107 +549,94 @@ const OptimizedAccordion = ({
 		setShifts(updatedShifts);
 	};
 
+	const hasShifts = shifts.length > 0;
+
 	return (
-		<>
-			{shifts.map((element, index) => {
-				return (
-					<Accordion key={index} type="single" collapsible className="w-full">
-						<AccordionItem value={`item-${index}`} className="rounded-lg border-b-0 bg-foreground/3">
-							<AccordionTrigger className="flex flex-row-reverse justify-end items-center gap-2 px-3 py-0 h-10 hover:no-underline">
-								<div className="flex justify-between items-center w-full">
-									<label className="block text-sm font-medium text-foreground">
-										{t('common.DATE_AND_TIME')}
-										<span className="ml-1 text-destructive-ink">*</span>:
-									</label>
-									<span
-										onClick={() => handleRemoveShift(index)}
-										className="text-sm font-normal cursor-pointer text-destructive-ink underline-offset-4 hover:underline"
-									>
-										{t('common.REMOVE_PERIOD')}
-									</span>
-								</div>
-							</AccordionTrigger>
-							<AccordionContent className="px-3 pb-3">
-								<div className="flex flex-col gap-2">
-									<ShiftManagement
-										t={t}
-										value={element}
-										index={index}
-										onChange={handleShiftChange}
-										timeOptions={timeOptions}
-									/>
-								</div>
-							</AccordionContent>
-						</AccordionItem>
-					</Accordion>
-				);
-			})}
-			<Button
-				variant="ghost"
-				size="default"
-				onClick={handleAddShift}
-				className="w-fit justify-start text-primary-ink hover:text-primary-ink"
-			>
-				<Plus />
+		<div className="flex flex-col gap-2">
+			{hasShifts && (
+				<div className="flex flex-col rounded-xl bg-card hairline-ring ring-border hairline-divide-y divide-border">
+					{shifts.map((element, index) => (
+						<ShiftRow
+							key={index}
+							t={t}
+							value={element}
+							index={index}
+							onChange={handleShiftChange}
+							onRemove={() => handleRemoveShift(index)}
+							timeOptions={timeOptions}
+						/>
+					))}
+				</div>
+			)}
+			<button type="button" onClick={handleAddShift} className={ADD_ROW_RECIPE}>
+				<Plus aria-hidden="true" />
 				<span>{t('common.ADD_ANOTHER_PERIOD')}</span>
-			</Button>
-		</>
+			</button>
+		</div>
 	);
 };
 
-const ShiftManagement = ({
+const ShiftRow = ({
 	onChange,
+	onRemove,
 	value,
 	index,
 	timeOptions,
 	t
 }: {
 	onChange: (index: number, field: keyof Shift, value: string) => void;
+	onRemove: () => void;
 	value: Shift;
 	index: number;
 	timeOptions: string[];
 	t: TranslationHooks;
 }) => {
+	const locale = useLocale();
 	// Times skipped by a daylight saving change on the picked day cannot be saved as picked.
 	const baseDate = value.dateFrom ? new Date(value.dateFrom) : null;
 	const isTimeDisabled = (time: string) => baseDate !== null && createLocalDate(baseDate, time) === null;
+	const dateLabel = shiftDateLabelOf(value.dateFrom, locale, t('common.SELECT_DATE'));
 
 	return (
-		<>
-			<div className="w-[212px]">
-				<span className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('manualTime.DATE')}</span>
-				<DatePickerFilter
-					label={value.dateFrom ? value.dateFrom.toLocaleString() : t('common.SELECT_DATE')}
-					date={value.dateFrom as Date}
-					setDate={(value) => onChange(index, 'dateFrom', value as any)}
+		<div className="flex flex-col gap-2 p-3">
+			<div className="flex items-center gap-2">
+				<div className="min-w-0 flex-1">
+					<DatePickerFilter
+						label={dateLabel}
+						date={value.dateFrom as Date}
+						setDate={(value) => onChange(index, 'dateFrom', value as any)}
+					/>
+				</div>
+				<span className="shrink-0 rounded-md bg-foreground/[0.04] px-2 py-1 text-[13px] font-medium tabular-nums text-foreground">
+					{value.totalHours}
+				</span>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-sm"
+					onClick={onRemove}
+					aria-label={t('common.REMOVE_PERIOD')}
+					className="text-muted-foreground hover:text-destructive-ink"
+				>
+					<Trash aria-hidden="true" />
+				</Button>
+			</div>
+			<div className="grid grid-cols-2 gap-2">
+				<ShiftTimingSelect
+					label={t('manualTime.START_TIME')}
+					timeOptions={timeOptions}
+					value={value.startTime}
+					onChange={(value) => onChange(index, 'startTime', value)}
+					isTimeDisabled={isTimeDisabled}
+				/>
+				<ShiftTimingSelect
+					label={t('manualTime.END_TIME')}
+					timeOptions={timeOptions}
+					value={value.endTime}
+					onChange={(value) => onChange(index, 'endTime', value)}
+					isTimeDisabled={isTimeDisabled}
 				/>
 			</div>
-			<div className="flex flex-col gap-2 items-start w-full">
-				<span className="text-xs font-medium text-muted-foreground">{t('common.SHIFT_TIMING')}</span>
-				<div className="flex gap-2 justify-between items-center mb-1 w-full">
-					<ShiftTimingSelect
-						label="Start"
-						timeOptions={timeOptions}
-						placeholder="00:00:00"
-						className="bg-foreground/5"
-						value={value.startTime}
-						onChange={(value) => onChange(index, 'startTime', value)}
-						isTimeDisabled={isTimeDisabled}
-					/>
-					<ShiftTimingSelect
-						label="End"
-						timeOptions={timeOptions}
-						placeholder="00:00:00"
-						className="bg-foreground/5"
-						value={value.endTime}
-						onChange={(value) => onChange(index, 'endTime', value)}
-						isTimeDisabled={isTimeDisabled}
-					/>
-					<button className="flex h-9 shrink-0 items-center rounded-md bg-foreground/5 px-2.5 text-sm font-medium tabular-nums focus:outline-none">
-						{value.totalHours}
-					</button>
-				</div>
-			</div>
-		</>
+		</div>
 	);
 };
