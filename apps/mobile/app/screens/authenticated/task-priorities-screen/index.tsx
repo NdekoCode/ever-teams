@@ -196,14 +196,15 @@ export const TaskPriorityScreen: FC<AuthenticatedDrawerScreenProps<'TaskPriority
                 disabled={createReadOnly}
                 style={{
                   ...styles.createButtonSmall,
-                  borderColor: dark ? '#6755C9' : '#3826A6',
-                  backgroundColor: dark ? 'rgba(103, 85, 201, 0.15)' : 'rgba(56, 38, 166, 0.15)',
+                  borderColor: 'transparent',
+                  backgroundColor: webTheme.colors.primary,
+                  borderRadius: 999,
                   opacity: createOpacity
                 }}
                 onPress={handleCreateNew}
               >
-                <Ionicons name="add" size={18} color={dark ? '#6755C9' : '#3826A6'} />
-                <Text style={{ ...styles.btnTextSmall, color: dark ? '#6755C9' : '#3826A6' }}>
+                <Ionicons name="add" size={18} color={webTheme.colors['primary-foreground']} />
+                <Text style={{ ...styles.btnTextSmall, color: webTheme.colors['primary-foreground'] }}>
                   {translate('settingScreen.priorityScreen.createNewPriorityText')}
                 </Text>
               </TouchableOpacity>
@@ -251,14 +252,15 @@ export const TaskPriorityScreen: FC<AuthenticatedDrawerScreenProps<'TaskPriority
             disabled={createReadOnly}
             style={{
               ...styles.createButton,
-              borderColor: dark ? '#6755C9' : '#3826A6',
-              backgroundColor: dark ? 'rgba(103, 85, 201, 0.05)' : 'rgba(56, 38, 166, 0.05)',
+              borderColor: 'transparent',
+              backgroundColor: webTheme.colors.primary,
+              borderRadius: 999,
               opacity: createOpacity
             }}
             onPress={handleCreateNew}
           >
-            <Ionicons name="add" size={24} color={dark ? '#6755C9' : '#3826A6'} />
-            <Text style={{ ...styles.btnText, color: dark ? '#6755C9' : '#3826A6' }}>
+            <Ionicons name="add" size={24} color={webTheme.colors['primary-foreground']} />
+            <Text style={{ ...styles.btnText, color: webTheme.colors['primary-foreground'] }}>
               {translate('settingScreen.priorityScreen.createNewPriorityText')}
             </Text>
           </TouchableOpacity>
