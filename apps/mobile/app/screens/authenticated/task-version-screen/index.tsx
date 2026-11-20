@@ -19,6 +19,7 @@ import { AuthenticatedDrawerScreenProps } from '../../../navigators/authenticate
 import { translate } from '../../../i18n';
 import { typography, useAppTheme, useWebTheme } from '../../../theme';
 import { sheetLookOf, sheetOverlayOpacity } from '../../../../src/theme/sheet-look';
+import { settingsDividerOf, settingsListSurfaceOf } from '../../../../src/theme/settings-look';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTaskVersion } from '../../../services/hooks/features/use-task-version';
 import { useTaskSettingsAccess } from '../../../services/hooks/features/use-task-settings-access';
@@ -41,7 +42,8 @@ export const TaskVersionScreen: FC<AuthenticatedDrawerScreenProps<'TaskVersion'>
   _props
 ) {
   const { colors, dark } = useAppTheme();
-  const sheetLook = sheetLookOf(useWebTheme());
+  const webTheme = useWebTheme();
+  const sheetLook = sheetLookOf(webTheme);
   const { navigation } = _props;
 
   // Use the properly typed route
@@ -212,7 +214,7 @@ export const TaskVersionScreen: FC<AuthenticatedDrawerScreenProps<'TaskVersion'>
               width: '100%'
             }}
           >
-            {isLoading ? <ActivityIndicator size={'small'} color={'#3826A6'} /> : null}
+            {isLoading ? <ActivityIndicator size={'small'} color={webTheme.colors.primary} /> : null}
             {!isLoading && versions?.total === 0 ? (
               <Text style={{ ...styles.noVersionTxt, color: colors.primary }}>
                 {translate('settingScreen.versionScreen.noActiveVersions')}
@@ -222,7 +224,7 @@ export const TaskVersionScreen: FC<AuthenticatedDrawerScreenProps<'TaskVersion'>
             <FlatList
               bounces={false}
               showsVerticalScrollIndicator={false}
-              style={{ width: '100%' }}
+              style={[{ width: '100%', flexGrow: 0 }, settingsListSurfaceOf(versions?.items?.length ?? 0, webTheme)]}
               data={versions?.items}
               renderItem={({ item }) => (
                 <VersionItem
@@ -233,7 +235,7 @@ export const TaskVersionScreen: FC<AuthenticatedDrawerScreenProps<'TaskVersion'>
                 />
               )}
               keyExtractor={(_, index) => index.toString()}
-              ListFooterComponent={() => <View style={{ marginBottom: 40 }} />}
+              ItemSeparatorComponent={() => <View style={settingsDividerOf(webTheme)} />}
             />
           </View>
         </View>

@@ -21,6 +21,7 @@ import { translate } from '../../../i18n';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { typography, useAppTheme, useWebTheme } from '../../../theme';
 import { sheetLookOf, sheetOverlayOpacity } from '../../../../src/theme/sheet-look';
+import { settingsDividerOf, settingsListSurfaceOf } from '../../../../src/theme/settings-look';
 import { ActivityIndicator } from 'react-native-paper';
 import { ITaskStatusItem } from '../../../services/interfaces/ITaskStatus';
 import TaskSizeForm from './components/task-size-form';
@@ -44,7 +45,8 @@ export const TaskSizeScreen: FC<AuthenticatedDrawerScreenProps<'TaskSizeScreen'>
   _props
 ) {
   const { colors, dark } = useAppTheme();
-  const sheetLook = sheetLookOf(useWebTheme());
+  const webTheme = useWebTheme();
+  const sheetLook = sheetLookOf(webTheme);
   const { navigation } = _props;
 
   // Use the properly typed route
@@ -213,7 +215,7 @@ export const TaskSizeScreen: FC<AuthenticatedDrawerScreenProps<'TaskSizeScreen'>
               width: '100%'
             }}
           >
-            {isLoading ? <ActivityIndicator size={'small'} color={'#3826A6'} /> : null}
+            {isLoading ? <ActivityIndicator size={'small'} color={webTheme.colors.primary} /> : null}
             {!isLoading && sizes?.total === 0 ? (
               <Text style={{ ...styles.noStatusTxt, color: colors.primary }}>
                 {translate('settingScreen.sizeScreen.noActiveSizes')}
@@ -223,7 +225,7 @@ export const TaskSizeScreen: FC<AuthenticatedDrawerScreenProps<'TaskSizeScreen'>
             <FlatList
               bounces={false}
               showsVerticalScrollIndicator={false}
-              style={{ width: '100%' }}
+              style={[{ width: '100%', flexGrow: 0 }, settingsListSurfaceOf(sizes?.items?.length ?? 0, webTheme)]}
               contentContainerStyle={{ flexGrow: 1 }}
               data={sizes?.items}
               renderItem={({ item }) => (
@@ -235,7 +237,7 @@ export const TaskSizeScreen: FC<AuthenticatedDrawerScreenProps<'TaskSizeScreen'>
                 />
               )}
               keyExtractor={(_, index) => index.toString()}
-              ListFooterComponent={() => <View style={{ marginBottom: 40 }} />}
+              ItemSeparatorComponent={() => <View style={settingsDividerOf(webTheme)} />}
             />
           </View>
         </View>

@@ -21,6 +21,7 @@ import { translate } from '../../../i18n';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { typography, useAppTheme, useWebTheme } from '../../../theme';
 import { sheetLookOf, sheetOverlayOpacity } from '../../../../src/theme/sheet-look';
+import { settingsDividerOf, settingsListSurfaceOf } from '../../../../src/theme/settings-look';
 import StatusItem from './components/status-item';
 import { ActivityIndicator } from 'react-native-paper';
 import { useTaskStatus } from '../../../services/hooks/features/use-task-status';
@@ -43,7 +44,8 @@ export const TaskStatusScreen: FC<AuthenticatedDrawerScreenProps<'TaskStatus'>> 
   _props
 ) {
   const { colors, dark } = useAppTheme();
-  const sheetLook = sheetLookOf(useWebTheme());
+  const webTheme = useWebTheme();
+  const sheetLook = sheetLookOf(webTheme);
   const { navigation } = _props;
 
   // Use the properly typed route
@@ -214,7 +216,7 @@ export const TaskStatusScreen: FC<AuthenticatedDrawerScreenProps<'TaskStatus'>> 
               width: '100%'
             }}
           >
-            {isLoading ? <ActivityIndicator size={'small'} color={'#3826A6'} /> : null}
+            {isLoading ? <ActivityIndicator size={'small'} color={webTheme.colors.primary} /> : null}
             {!isLoading && statuses?.total === 0 ? (
               <Text style={{ ...styles.noStatusTxt, color: colors.primary }}>
                 {translate('settingScreen.statusScreen.noActiveStatuses')}
@@ -224,7 +226,7 @@ export const TaskStatusScreen: FC<AuthenticatedDrawerScreenProps<'TaskStatus'>> 
             <FlatList
               bounces={false}
               showsVerticalScrollIndicator={false}
-              style={{ width: '100%' }}
+              style={[{ width: '100%', flexGrow: 0 }, settingsListSurfaceOf(statuses?.items?.length ?? 0, webTheme)]}
               contentContainerStyle={{ flexGrow: 1 }}
               data={statuses?.items}
               renderItem={({ item }) => (
@@ -236,7 +238,7 @@ export const TaskStatusScreen: FC<AuthenticatedDrawerScreenProps<'TaskStatus'>> 
                 />
               )}
               keyExtractor={(item) => item.id}
-              ListFooterComponent={() => <View style={{ marginBottom: 40 }} />}
+              ItemSeparatorComponent={() => <View style={settingsDividerOf(webTheme)} />}
             />
           </View>
         </View>
